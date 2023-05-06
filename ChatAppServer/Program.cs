@@ -4,14 +4,15 @@ using System.Text;
 using System.Net.Sockets;
 using System.Net;
 using System.IO;
-using ChatAppServer.src.MsgExchg;
+using ChatAppServer.src.ManageChat;
+using ChatAppServer.src.Clients;
 
 namespace ChatAppServer
 {
     public class Program
     {
         static TcpListener listener = new TcpListener(new IPAddress(new byte[] {127,0,0,1}), 10_000);
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             DataBaseConnection DB = new DataBaseConnection("Data Source=KAROLPC;Initial Catalog=ChatAppDB;Integrated Security=true");
             try
@@ -31,11 +32,20 @@ namespace ChatAppServer
                     Console.WriteLine($"UserID: {reader["user_id"]}, Login: {reader["login"]}");
                 }
             }
+
+
             NetworkStream stream;
+            ChatServiceManager chatServiceManager;
+            List<TcpClient> clients = new();
             try
             {
                 listener.Start();
                 TcpClient handler = listener.AcceptTcpClient();
+               // Client client = new(String.Empty,ref handler);
+                clients.Add(handler);
+                chatServiceManager = new(listener, clients);
+                //TODO: check if clients lists updates uppon accepting new clients.
+
                 stream = handler.GetStream();
             }catch (IOException ex)
             {
@@ -45,40 +55,38 @@ namespace ChatAppServer
                 return;
             }
 
-            while (true)
+
+
+
+            var cts = new CancellationTokenSource();
+            var serverDuties = new List<Task>()
             {
+                new Task(() => chatServiceManager.ReadMessages(cts.Token)),
+                new Task(() => chatServiceManager.AcceptClients(cts.Token))
+            };
 
-
-                try
+            try
+            {
+                foreach(var task in serverDuties)
                 {
-
-                    var message = $"Server Time: {DateTime.Now}";
-                    var dateTimeBytes = Encoding.UTF8.GetBytes(message);
-                    stream.Write(dateTimeBytes);
-
-                    Console.WriteLine($"Sent message: \"{message}\"");
-
-                    var buffer = new byte[1_024];
-                    stream.Read(buffer);
-                    string received = Encoding.UTF8.GetString(buffer);
-
-                    Console.WriteLine(received);
-                    //Console.Read();
+                    task.Start();
                 }
-                catch (IOException ex) //change for specific errors
-                {
-                    Console.WriteLine(ex.Message);
-                    listener.Stop();
-                    DB.Close();
-                    return;
-                }
-                finally
-                {
-                    listener.Stop();
-                }
+                Console.Read();
+            }
+            catch (IOException ex) //change for specific errors
+            {
+                Console.WriteLine(ex.Message);
+                listener.Stop();
+                DB.Close();
+                return;
+            }
+            finally
+            {
+                listener.Stop();
             }
 
 
+            await Task.WhenAll(serverDuties);
             DB.Close();
         }
     }
