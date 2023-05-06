@@ -33,6 +33,7 @@ namespace ChatAppServer.src.ManageChat
                 return;
             while (true)
             {
+                var messagesToSend = new List<Task>();
                 lock (connectedClients)
                 {
                     foreach (TcpClient client in connectedClients)
@@ -45,8 +46,15 @@ namespace ChatAppServer.src.ManageChat
                             stream.ReadAsync(buffer);
                             string received = Encoding.UTF8.GetString(buffer);
                             Console.WriteLine(received);
+                            messagesToSend.Add(new Task(() => SendMessages(received, client)));
+
                         }
                     }
+                }
+
+                foreach(var task in messagesToSend)
+                {
+                    task.Start();
                 }
             }
         }
@@ -61,6 +69,20 @@ namespace ChatAppServer.src.ManageChat
                 lock (connectedClients)
                 {
                     connectedClients?.Add(tcpClient);
+                }
+            }
+        }
+
+
+        public void SendMessages(string message, TcpClient sender)
+        {
+            lock(connectedClients)
+            {
+                foreach(var client in connectedClients)
+                {
+                    if (client == sender) continue;
+                    var bytesToSend = Encoding.UTF8.GetBytes(message);
+                    client.GetStream().Write(bytesToSend, 0, bytesToSend.Length);
                 }
             }
         }
