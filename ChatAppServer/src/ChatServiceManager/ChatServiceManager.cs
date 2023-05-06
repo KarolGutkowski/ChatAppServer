@@ -118,7 +118,7 @@ namespace ChatAppServer.src.ManageChat
                 foreach (var client in connectedClients)
                 {
                     if (client == sender) continue;
-                    bool success = StreamWrite(client.GetStream(), message))
+                    bool success = StreamWrite(client.GetStream(), message);
                     if(!success)
                     {
                         connectedClients.Remove(client);
