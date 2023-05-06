@@ -37,6 +37,7 @@ namespace ChatAppServer.src.ManageChat
                 {
                     foreach (TcpClient client in connectedClients)
                     {
+                        if(!client.Connected) connectedClients.Remove(client);
                         NetworkStream stream = client.GetStream();
                         if (stream.DataAvailable)
                         {
