@@ -12,18 +12,21 @@ namespace ChatAppServer
     public class Program
     {
         static TcpListener listener = new TcpListener(new IPAddress(new byte[] {127,0,0,1}), 10_000);
+        public static DataBaseConnection DB;
+        public static DBQueryManager queriesManager;
         static async Task Main(string[] args)
         {
             DataBaseConnection DB = new DataBaseConnection("Data Source=KAROLPC;Initial Catalog=ChatAppDB;Integrated Security=true");
             try
             {
                 DB.Initiate();
-            }catch(FailedConnectToDataBaseException ex)
+            }
+            catch (FailedConnectToDataBaseException ex)
             {
                 Console.WriteLine(ex.Message);
                 return;
             }
-            DBQueryManager queriesManager = new DBQueryManager(DB);
+            queriesManager = new DBQueryManager(DB);
             IDataReader? reader = queriesManager.Select("SELECT user_id, login FROM Users");
             if(reader!=null)
             {
@@ -65,28 +68,16 @@ namespace ChatAppServer
                 new Task(() => chatServiceManager.AcceptClients(cts.Token))
             };
 
-            try
+        
+            foreach(var task in serverDuties)
             {
-                foreach(var task in serverDuties)
-                {
-                    task.Start();
-                }
-                Console.Read();
+                task.Start();
             }
-            catch (IOException ex) //change for specific errors
-            {
-                Console.WriteLine(ex.Message);
-                listener.Stop();
-                DB.Close();
-                return;
-            }
-            finally
-            {
-                listener.Stop();
-            }
+
 
 
             await Task.WhenAll(serverDuties);
+            listener.Stop();
             DB.Close();
         }
     }

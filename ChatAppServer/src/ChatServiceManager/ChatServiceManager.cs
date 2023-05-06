@@ -8,7 +8,8 @@ using System.Net.Sockets;
 using System.Net;
 using System.IO;
 using ChatAppServer.src.Clients;
-
+using System.Net.NetworkInformation;
+using static ChatAppServer.src.NetworkStreamMessageProcessor.NetworkStreamMessageProcessor;
 
 namespace ChatAppServer.src.ManageChat
 {
@@ -42,11 +43,15 @@ namespace ChatAppServer.src.ManageChat
                         NetworkStream stream = client.GetStream();
                         if (stream.DataAvailable)
                         {
-                            var buffer = new byte[1_024];
-                            stream.ReadAsync(buffer);
-                            string received = Encoding.UTF8.GetString(buffer);
+
+                            (string? received, bool success) = StreamRead(stream);
+                            if(!success)
+                            {
+                                connectedClients.Remove(client);
+                                continue;
+                            }
                             Console.WriteLine(received);
-                            messagesToSend.Add(new Task(() => SendMessages(received, client)));
+                            messagesToSend.Add(new Task(() => SendMessages(received!, client)));
 
                         }
                     }
@@ -64,27 +69,76 @@ namespace ChatAppServer.src.ManageChat
             while(true)
             {   
                 
-                    if (listener == null) return;
-                    TcpClient tcpClient = listener.AcceptTcpClient();
-                lock (connectedClients)
+                if (listener == null) return;
+                TcpClient tcpClient = listener.AcceptTcpClient();
+                NetworkStream stream = tcpClient.GetStream();
+                /*
+                if(!AuthenticateUserCredentials(stream))
+                {
+                    var message = "FAILED";
+                    var bytes = Encoding.UTF8.GetBytes(message);
+                    try
+                    {
+                        stream.Write(bytes, 0, bytes.Length);
+                    }
+                    catch (IOException)
+                    {
+                        continue;
+                    }
+                    finally
+                    {
+                        tcpClient.Close();
+                    }
+                    continue;
+                    
+                }
+
+                var acceptance = "ACCEPTED";
+                var bytesToSend = Encoding.UTF8.GetBytes(acceptance);
+                try
+                {
+                    stream.Write(bytesToSend, 0, bytesToSend.Length);
+                }
+                catch (IOException)
+                {
+                    tcpClient.Close();
+                    continue;
+                }*/
+
+                    lock (connectedClients)
                 {
                     connectedClients?.Add(tcpClient);
                 }
             }
         }
-
-
         public void SendMessages(string message, TcpClient sender)
         {
-            lock(connectedClients)
+            lock (connectedClients)
             {
-                foreach(var client in connectedClients)
+                foreach (var client in connectedClients)
                 {
                     if (client == sender) continue;
-                    var bytesToSend = Encoding.UTF8.GetBytes(message);
-                    client.GetStream().Write(bytesToSend, 0, bytesToSend.Length);
+                    bool success = StreamWrite(client.GetStream(), message))
+                    if(!success)
+                    {
+                        connectedClients.Remove(client);
+                    }
+
                 }
             }
+        }
+
+        public bool AuthenticateUserCredentials(NetworkStream stream)
+        {
+            (string? received, bool success) = StreamRead(stream);
+            if(!success)
+            {
+                return false;
+            }
+            string[] separators = new string[2] { "[login]", "[password]" };
+            string[] loginData = received!.Split(separators, StringSplitOptions.RemoveEmptyEntries);
+
+            return Program.queriesManager.Exists($"SELECT user_id FROM Users WHERE login ='{loginData[0]}' AND password = '{loginData[1]}'");
         }
     }
 }

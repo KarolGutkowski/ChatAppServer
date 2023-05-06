@@ -4,6 +4,7 @@ using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Data.Common;
 
 namespace ChatAppServer
 {
@@ -18,6 +19,13 @@ namespace ChatAppServer
                 throw new ArgumentNullException("Null database connection argument in DBQuery Constructor");
             }
             this.DBConnection = DBConnection;
+        }
+
+        public bool Exists(string command)
+        {
+            DbDataReader? result = (DbDataReader?)Select(command);
+            if(result == null) return false;
+            return result.HasRows;
         }
 
         public IDataReader? Select(string command)
