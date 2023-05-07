@@ -9,14 +9,16 @@ using ChatAppServer.src.Clients;
 
 namespace ChatAppServer
 {
+   
     public class Program
     {
+        public static string mainDB = "ChatAppDB";
         static TcpListener listener = new TcpListener(new IPAddress(new byte[] {127,0,0,1}), 10_000);
         public static DataBaseConnection DB;
-        public static DBQueryManager queriesManager;
         static async Task Main(string[] args)
         {
-            DataBaseConnection DB = new DataBaseConnection("Data Source=KAROLPC;Initial Catalog=ChatAppDB;Integrated Security=true");
+            /*
+            DataBaseConnection DB = new DataBaseConnection("ChatAppDB");
             try
             {
                 DB.Initiate();
@@ -25,9 +27,8 @@ namespace ChatAppServer
             {
                 Console.WriteLine(ex.Message);
                 return;
-            }
-            queriesManager = new DBQueryManager(DB);
-            IDataReader? reader = queriesManager.Select("SELECT user_id, login FROM Users");
+            }*/
+            IDataReader? reader = DBQueryManager.Select(mainDB, "SELECT user_id, login FROM Users WHERE login='user' AND password='test_password'");
             if(reader!=null)
             {
                 while(reader.Read())

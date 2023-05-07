@@ -13,15 +13,21 @@ namespace ChatAppServer
     {
         private SqlConnection? Connection = null;
         private string connectionString;
-        public SqlConnection? _connection
+        public SqlConnection? connection
         {
             get => Connection;
             set => Connection = value;
         }
 
-        public DataBaseConnection(string connectionString) 
+        public DataBaseConnection(string dataBaseName) 
         {
-            this.connectionString = connectionString;
+
+            string? sAttr = ConfigurationManager.AppSettings.Get($"{dataBaseName}");
+            if(sAttr is null)
+            {
+                throw new ArgumentException("Data Base of provide name not found in configuration file.");
+            }
+            this.connectionString = sAttr;
         }
 
         public void Initiate()

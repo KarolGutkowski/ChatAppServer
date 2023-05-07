@@ -33,7 +33,7 @@ namespace ChatAppServer.src.NetworkStreamMessageProcessor
             {
                 return (null, false);
             }
-            string received = Encoding.UTF8.GetString(buffer);
+            string received = Encoding.UTF8.GetString(buffer,0,readBytesCount);
             return (received, true);
         }
     }

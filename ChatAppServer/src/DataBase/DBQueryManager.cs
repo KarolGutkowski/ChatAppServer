@@ -5,41 +5,59 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Data.Common;
+using System.Configuration;
+using System.Collections.Specialized;
 
 namespace ChatAppServer
 {
-    public class DBQueryManager
+    public static class DBQueryManager
     {
-        private DataBaseConnection DBConnection;
-
-        public DBQueryManager(DataBaseConnection DBConnection)
+        public static bool Exists(string dataBaseName, string command)
         {
-            if(DBConnection == null || DBConnection._connection == null)
+            IDataReader? result = Select(dataBaseName, command);
+            if(result is null) return false;
+            bool exists = false;
+            if (result != null)
             {
-                throw new ArgumentNullException("Null database connection argument in DBQuery Constructor");
+                while (result.Read())
+                {
+                    Console.WriteLine($"UserID: {result["user_id"]}");
+                    exists = true;
+                }
             }
-            this.DBConnection = DBConnection;
+            Console.WriteLine($"QUERY '{command}'\n" +
+                $"did return rows? = {exists}");
+            return exists;
         }
 
-        public bool Exists(string command)
+        public static IDataReader? Select(string dataBaseName, string command)
         {
-            DbDataReader? result = (DbDataReader?)Select(command);
-            if(result == null) return false;
-            return result.HasRows;
-        }
-
-        public IDataReader? Select(string command)
-        {
-            if(DBConnection== null || DBConnection._connection == null)
-                return null;
-
-            if(DBConnection._connection.State == ConnectionState.Open)
+            DataBaseConnection DBConn;
+            try
             {
-                IDbCommand query = DBConnection._connection.CreateCommand();
+                DBConn = new DataBaseConnection(dataBaseName);
+            }catch (ArgumentException)
+            {
+                throw;
+            }
+
+            try
+            {
+                DBConn.Initiate();
+            }catch(FailedConnectToDataBaseException)
+            {
+                throw;
+            }
+
+            if(DBConn?.connection?.State == ConnectionState.Open)
+            {
+                IDbCommand query = DBConn.connection.CreateCommand();
                 query.CommandType = CommandType.Text;
                 query.CommandText = command;
                 return query.ExecuteReader();
             }
+
+            DBConn?.Close();
 
             return null;
         }

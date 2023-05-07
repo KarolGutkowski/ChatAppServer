@@ -72,40 +72,23 @@ namespace ChatAppServer.src.ManageChat
                 if (listener == null) return;
                 TcpClient tcpClient = listener.AcceptTcpClient();
                 NetworkStream stream = tcpClient.GetStream();
-                /*
+                
                 if(!AuthenticateUserCredentials(stream))
                 {
-                    var message = "FAILED";
-                    var bytes = Encoding.UTF8.GetBytes(message);
-                    try
-                    {
-                        stream.Write(bytes, 0, bytes.Length);
-                    }
-                    catch (IOException)
-                    {
-                        continue;
-                    }
-                    finally
-                    {
-                        tcpClient.Close();
-                    }
+                    StreamWrite(tcpClient.GetStream(), "FAILED");
+                    tcpClient.Close();
                     continue;
                     
                 }
 
-                var acceptance = "ACCEPTED";
-                var bytesToSend = Encoding.UTF8.GetBytes(acceptance);
-                try
-                {
-                    stream.Write(bytesToSend, 0, bytesToSend.Length);
-                }
-                catch (IOException)
+                bool success = StreamWrite(tcpClient.GetStream(), "ACCEPTED");
+                if(!success)
                 {
                     tcpClient.Close();
                     continue;
-                }*/
+                }
 
-                    lock (connectedClients)
+                lock (connectedClients)
                 {
                     connectedClients?.Add(tcpClient);
                 }
@@ -137,8 +120,8 @@ namespace ChatAppServer.src.ManageChat
             }
             string[] separators = new string[2] { "[login]", "[password]" };
             string[] loginData = received!.Split(separators, StringSplitOptions.RemoveEmptyEntries);
-
-            return Program.queriesManager.Exists($"SELECT user_id FROM Users WHERE login ='{loginData[0]}' AND password = '{loginData[1]}'");
+            Console.WriteLine($"Attempt to login with credentials login:{loginData[0]} password:{loginData[1]}");
+            return DBQueryManager.Exists(Program.mainDB, $"SELECT user_id, login FROM Users WHERE login='{loginData[0]}' AND password='{loginData[1]}'");
         }
     }
 }
