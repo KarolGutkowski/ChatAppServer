@@ -21,12 +21,9 @@ namespace ChatAppServer
             {
                 while (result.Read())
                 {
-                    Console.WriteLine($"UserID: {result["user_id"]}");
                     exists = true;
                 }
             }
-            Console.WriteLine($"QUERY '{command}'\n" +
-                $"did return rows? = {exists}");
             return exists;
         }
 

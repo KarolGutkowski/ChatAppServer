@@ -17,51 +17,13 @@ namespace ChatAppServer
         public static DataBaseConnection DB;
         static async Task Main(string[] args)
         {
-            /*
-            DataBaseConnection DB = new DataBaseConnection("ChatAppDB");
-            try
-            {
-                DB.Initiate();
-            }
-            catch (FailedConnectToDataBaseException ex)
-            {
-                Console.WriteLine(ex.Message);
-                return;
-            }*/
-            IDataReader? reader = DBQueryManager.Select(mainDB, "SELECT user_id, login FROM Users WHERE login='user' AND password='test_password'");
-            if(reader!=null)
-            {
-                while(reader.Read())
-                {
-                    Console.WriteLine($"UserID: {reader["user_id"]}, Login: {reader["login"]}");
-                }
-            }
 
-
-            NetworkStream stream;
             ChatServiceManager chatServiceManager;
             List<TcpClient> clients = new();
-            try
-            {
-                listener.Start();
-                TcpClient handler = listener.AcceptTcpClient();
-               // Client client = new(String.Empty,ref handler);
-                clients.Add(handler);
-                chatServiceManager = new(listener, clients);
-                //TODO: check if clients lists updates uppon accepting new clients.
-
-                stream = handler.GetStream();
-            }catch (IOException ex)
-            {
-                Console.WriteLine(ex.Message);
-                listener.Stop();
-                DB.Close();
-                return;
-            }
-
-
-
-
+            listener.Start();
+            Console.WriteLine("Server started!");
+            chatServiceManager = new(listener, clients);
+               
             var cts = new CancellationTokenSource();
             var serverDuties = new List<Task>()
             {
@@ -74,7 +36,6 @@ namespace ChatAppServer
             {
                 task.Start();
             }
-
 
 
             await Task.WhenAll(serverDuties);

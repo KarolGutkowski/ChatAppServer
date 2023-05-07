@@ -82,6 +82,7 @@ namespace ChatAppServer.src.ManageChat
                 }
 
                 bool success = StreamWrite(tcpClient.GetStream(), "ACCEPTED");
+                Console.WriteLine("USER Accepted");
                 if(!success)
                 {
                     tcpClient.Close();
@@ -120,7 +121,6 @@ namespace ChatAppServer.src.ManageChat
             }
             string[] separators = new string[2] { "[login]", "[password]" };
             string[] loginData = received!.Split(separators, StringSplitOptions.RemoveEmptyEntries);
-            Console.WriteLine($"Attempt to login with credentials login:{loginData[0]} password:{loginData[1]}");
             return DBQueryManager.Exists(Program.mainDB, $"SELECT user_id, login FROM Users WHERE login='{loginData[0]}' AND password='{loginData[1]}'");
         }
     }
