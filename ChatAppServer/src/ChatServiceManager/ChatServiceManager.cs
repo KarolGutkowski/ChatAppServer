@@ -10,6 +10,7 @@ using System.IO;
 using ChatAppServer.src.Clients;
 using System.Net.NetworkInformation;
 using static ChatAppServer.src.NetworkStreamMessageProcessor.NetworkStreamMessageProcessor;
+using System.Data.SqlClient;
 
 namespace ChatAppServer.src.ManageChat
 {
@@ -120,8 +121,19 @@ namespace ChatAppServer.src.ManageChat
                 return false;
             }
             string[] separators = new string[2] { "[login]", "[password]" };
-            string[] loginData = received!.Split(separators, StringSplitOptions.RemoveEmptyEntries);
-            return DBQueryManager.Exists(Program.mainDB, $"SELECT user_id, login FROM Users WHERE login='{loginData[0]}' AND password='{loginData[1]}'");
+            string[] loginData = received!.Split(separators, 
+StringSplitOptions.RemoveEmptyEntries);
+
+            string queryText = "SELECT user_id, login FROM Users WHERE login=@login AND password=@password";
+            List<(string, string, SqlDbType)> queryParamsList = new List<(string,string, SqlDbType)>()
+            {
+               ("@login", loginData[0], SqlDbType.VarChar),
+               ("@password", loginData[1],SqlDbType.VarChar)
+            };
+
+            
+
+            return DBQueryManager.Exists(Program.mainDB,queryText, queryParamsList);
         }
     }
 }
