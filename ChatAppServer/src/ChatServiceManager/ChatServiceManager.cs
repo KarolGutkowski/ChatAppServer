@@ -11,6 +11,7 @@ using ChatAppServer.src.Clients;
 using System.Net.NetworkInformation;
 using static ChatAppServer.src.NetworkStreamMessageProcessor.NetworkStreamMessageProcessor;
 using System.Data.SqlClient;
+using BCrypt.Net;
 
 namespace ChatAppServer.src.ManageChat
 {
@@ -125,6 +126,7 @@ namespace ChatAppServer.src.ManageChat
 StringSplitOptions.RemoveEmptyEntries);
 
             string queryText = "SELECT user_id, login FROM Users WHERE login=@login AND password=@password";
+            
             List<(string, string, SqlDbType)> queryParamsList = new List<(string,string, SqlDbType)>()
             {
                ("@login", loginData[0], SqlDbType.VarChar),
@@ -133,7 +135,7 @@ StringSplitOptions.RemoveEmptyEntries);
 
             
 
-            return DBQueryManager.Exists(Program.mainDB,queryText, queryParamsList);
+            return DBQueryManager.GivenCredentialsCorrect(Program.mainDB,queryText, queryParamsList);
         }
     }
 }
