@@ -30,11 +30,11 @@ namespace ChatAppServer.src.ManageChat
             this.connectedClients = clients;
         }
 
-        public void ReadMessages(CancellationToken? cts=null)
+        public void ReadMessages(CancellationToken cts)
         {
             if (connectedClients == null)
                 return;
-            while (true)
+            while (cts.IsCancellationRequested)
             {
                 var messagesToSend = new List<Task>();
                 lock (connectedClients)
@@ -66,13 +66,22 @@ namespace ChatAppServer.src.ManageChat
             }
         }
 
-        public void AcceptClients(CancellationToken? cts= null)
+        public async void AcceptClients(CancellationToken cts)
         {
-            while(true)
+            while(cts.IsCancellationRequested)
             {   
                 
                 if (listener == null) return;
                 TcpClient tcpClient = listener.AcceptTcpClient();
+                var acceptTask = listener.AcceptTcpClientAsync();
+
+                var completedTask = await Task.WhenAny(acceptTask, Task.Delay(-1, cts));
+
+                if(completedTask != acceptTask)
+                {
+                    return;
+                }
+
                 NetworkStream stream = tcpClient.GetStream();
                 
                 if(!AuthenticateUserCredentials(stream))

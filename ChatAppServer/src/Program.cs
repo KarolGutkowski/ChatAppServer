@@ -37,10 +37,17 @@ namespace ChatAppServer
                 task.Start();
             }
 
+            string command = string.Empty;
+            while(command!="quit()")
+            {
+                command = Console.ReadLine();
+            }
+
+            cts.Cancel();
+
 
             await Task.WhenAll(serverDuties);
             listener.Stop();
-            DB.Close();
         }
     }
 }
