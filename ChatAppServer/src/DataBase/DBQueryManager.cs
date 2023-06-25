@@ -13,9 +13,6 @@ namespace ChatAppServer
 {
     public static class DBQueryManager
     {
-
-       
-
         public static bool Exists(string dataBaseName, string command, List<(string, string, SqlDbType)> queryParams)
         {
             IDataReader? result = Select(dataBaseName, command, queryParams);
@@ -39,12 +36,9 @@ namespace ChatAppServer
                 queryParams[0]
             };
 
-
-
             IDataReader? result = Select(dataBaseName, query, parameters);
             string? passwordStoredInDB = string.Empty;
             if (result is null) return false;
-            bool exists = false;
             if (result != null)
             {
                 while(result.Read())
@@ -53,16 +47,10 @@ namespace ChatAppServer
                 }
             }
 
-
             if (passwordStoredInDB is null)
                 return false;
 
-            
             string passwordGivenByUser = queryParams[1].Item2;
-
-
-
-
             return BCrypt.Net.BCrypt.Verify(passwordGivenByUser, passwordStoredInDB); ;
         }
 
@@ -103,8 +91,5 @@ namespace ChatAppServer
 
             return null;
         }
-
-
-       
     }
 }
