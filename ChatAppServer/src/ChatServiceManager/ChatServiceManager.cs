@@ -12,10 +12,11 @@ using System.Net.NetworkInformation;
 using static ChatAppServer.src.NetworkStreamMessageProcessor.NetworkStreamMessageProcessor;
 using System.Data.SqlClient;
 using BCrypt.Net;
+using BCrypt.Net;
 
 namespace ChatAppServer.src.ManageChat
 {
-    internal class ChatServiceManager
+    public class ChatServiceManager
     {
         private TcpListener? listener;
         private List<TcpClient>? connectedClients;
@@ -130,21 +131,44 @@ namespace ChatAppServer.src.ManageChat
             {
                 return false;
             }
-            string[] separators = new string[2] { "[login]", "[password]" };
-            string[] loginData = received!.Split(separators, 
-StringSplitOptions.RemoveEmptyEntries);
+            (string login, string password) = GetLoginDataFromString(received!);
 
             string queryText = "SELECT user_id, login FROM Users WHERE login=@login AND password=@password";
             
             List<(string, string, SqlDbType)> queryParamsList = new List<(string,string, SqlDbType)>()
             {
-               ("@login", loginData[0], SqlDbType.VarChar),
-               ("@password", loginData[1],SqlDbType.VarChar)
+               ("@login", login, SqlDbType.VarChar),
+               ("@password", password,SqlDbType.VarChar)
             };
 
             
 
             return DBQueryManager.GivenCredentialsCorrect(Program.mainDB,queryText, queryParamsList);
+        }
+
+        public static (string username, string password) GetLoginDataFromString(string loginDataMessage)
+        {
+            string[] separators = new string[2] { "[login]", "[password]" };
+            string[] loginData = loginDataMessage!.Split(separators,StringSplitOptions.RemoveEmptyEntries);
+
+            if(loginData.Length < 2)
+            {
+                throw new ArgumentException();
+            }
+
+            string login = loginData[0];
+            string password = loginData[1];
+
+            if(String.IsNullOrWhiteSpace(login))
+            {
+                throw new ArgumentException("Invalid argument provided!", "login");
+            }
+            if(String.IsNullOrWhiteSpace(password))
+            {
+                throw new ArgumentException("Invalid argument provided!", "password");
+            }
+
+            return (login, password);
         }
     }
 }
