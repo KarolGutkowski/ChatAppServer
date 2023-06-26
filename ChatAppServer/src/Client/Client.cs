@@ -7,7 +7,7 @@ using System.Net.Sockets;
 
 namespace ChatAppServer.src.Clients
 {
-    internal class Client
+    public class Client
     {
         private string? login;
         private TcpClient? clientConnection;

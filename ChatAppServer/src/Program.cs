@@ -19,7 +19,7 @@ namespace ChatAppServer
         {
 
             ChatServiceManager chatServiceManager;
-            List<TcpClient> clients = new();
+            List<Client> clients = new();
             listener.Start();
             Console.WriteLine("Server started!");
             chatServiceManager = new(listener, clients);

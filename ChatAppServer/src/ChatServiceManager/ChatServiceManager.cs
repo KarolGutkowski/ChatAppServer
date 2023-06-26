@@ -18,13 +18,13 @@ namespace ChatAppServer.src.ManageChat
     public class ChatServiceManager
     {
         private TcpListener? listener;
-        private List<TcpClient>? connectedClients;
+        private List<Client>? connectedClients;
         public ChatServiceManager()
         {
             this.listener = null;
             this.connectedClients = null;
         }
-        public ChatServiceManager(TcpListener listener, List<TcpClient> clients)
+        public ChatServiceManager(TcpListener listener, List<Client> clients)
         {
             this.listener = listener;
             this.connectedClients = clients;
@@ -39,10 +39,12 @@ namespace ChatAppServer.src.ManageChat
                 var messagesToSend = new List<Task>();
                 lock (connectedClients)
                 {
-                    foreach (TcpClient client in connectedClients)
+                    foreach (var client in connectedClients)
                     {
-                        if(!client.Connected) connectedClients.Remove(client);
-                        NetworkStream stream = client.GetStream();
+                        if(client.Connection is null || !client.Connection.Connected) 
+                            connectedClients.Remove(client);
+
+                        NetworkStream stream = client.Connection.GetStream();
                         if (stream.DataAvailable)
                         {
 
@@ -85,7 +87,7 @@ namespace ChatAppServer.src.ManageChat
                 TcpClient tcpClient = acceptTask.Result;
                 NetworkStream stream = tcpClient.GetStream();
 
-                (bool authorizedToJoin, _) = AuthenticateUserCredentials(stream);
+                (bool authorizedToJoin, string login) = AuthenticateUserCredentials(stream);
 
                 if (!authorizedToJoin)
                 {
@@ -103,20 +105,21 @@ namespace ChatAppServer.src.ManageChat
                     continue;
                 }
 
+                Client newlyAcceptedClient = new Client(login, ref tcpClient);
                 lock (connectedClients)
                 {
-                    connectedClients?.Add(tcpClient);
+                    connectedClients?.Add(newlyAcceptedClient);
                 }
             }
         }
-        public void SendMessages(string message, TcpClient sender)
+        public void SendMessages(string message, Client sender)
         {
             lock (connectedClients)
             {
                 foreach (var client in connectedClients)
                 {
-                    if (client == sender) continue;
-                    bool success = StreamWrite(client.GetStream(), message);
+                    if (client.Login == sender.Login) continue;
+                    bool success = StreamWrite(client.Connection.GetStream(), message);
                     if(!success)
                     {
                         connectedClients.Remove(client);
