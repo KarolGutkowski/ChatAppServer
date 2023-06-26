@@ -12,10 +12,15 @@ namespace ChatAppServer.src.Clients
         private string? login;
         private TcpClient? clientConnection;
 
-        public TcpClient connection
+        public TcpClient? Connection
         {
-            get;
+            get { return clientConnection; }
         }
+        public string? Login
+        {
+            get { return login; }
+        }
+
         public Client(string login,ref TcpClient conn)
         {
             this.login = login;
