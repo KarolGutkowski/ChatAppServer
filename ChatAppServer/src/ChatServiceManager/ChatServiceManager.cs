@@ -12,7 +12,6 @@ using System.Net.NetworkInformation;
 using static ChatAppServer.src.NetworkStreamMessageProcessor.NetworkStreamMessageProcessor;
 using System.Data.SqlClient;
 using BCrypt.Net;
-using BCrypt.Net;
 
 namespace ChatAppServer.src.ManageChat
 {
@@ -35,7 +34,7 @@ namespace ChatAppServer.src.ManageChat
         {
             if (connectedClients == null)
                 return;
-            while (cts.IsCancellationRequested)
+            while (!cts.IsCancellationRequested)
             {
                 var messagesToSend = new List<Task>();
                 lock (connectedClients)
@@ -69,11 +68,11 @@ namespace ChatAppServer.src.ManageChat
 
         public async void AcceptClients(CancellationToken cts)
         {
-            while(cts.IsCancellationRequested)
+            while(!cts.IsCancellationRequested)
             {   
                 
                 if (listener == null) return;
-                TcpClient tcpClient = listener.AcceptTcpClient();
+               // TcpClient tcpClient = listener.AcceptTcpClient();
                 var acceptTask = listener.AcceptTcpClientAsync();
 
                 var completedTask = await Task.WhenAny(acceptTask, Task.Delay(-1, cts));
@@ -83,9 +82,12 @@ namespace ChatAppServer.src.ManageChat
                     return;
                 }
 
+                TcpClient tcpClient = acceptTask.Result;
                 NetworkStream stream = tcpClient.GetStream();
-                
-                if(!AuthenticateUserCredentials(stream))
+
+                (bool authorizedToJoin, _) = AuthenticateUserCredentials(stream);
+
+                if (!authorizedToJoin)
                 {
                     StreamWrite(tcpClient.GetStream(), "FAILED");
                     tcpClient.Close();
@@ -124,12 +126,12 @@ namespace ChatAppServer.src.ManageChat
             }
         }
 
-        public bool AuthenticateUserCredentials(NetworkStream stream)
+        public (bool, string?) AuthenticateUserCredentials(NetworkStream stream)
         {
             (string? received, bool success) = StreamRead(stream);
             if(!success)
             {
-                return false;
+                return (false, null);
             }
             (string login, string password) = GetLoginDataFromString(received!);
 
@@ -143,7 +145,7 @@ namespace ChatAppServer.src.ManageChat
 
             
 
-            return DBQueryManager.GivenCredentialsCorrect(Program.mainDB,queryText, queryParamsList);
+            return (DBQueryManager.GivenCredentialsCorrect(Program.mainDB,queryText, queryParamsList), login);
         }
 
         public static (string username, string password) GetLoginDataFromString(string loginDataMessage)
