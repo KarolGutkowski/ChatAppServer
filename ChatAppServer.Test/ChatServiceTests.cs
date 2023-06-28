@@ -66,6 +66,7 @@ namespace ChatAppServer.Test
                 yield return new object[] { "", "password" };
                 yield return new object[] { "login", "" };
                 yield return new object[] { "", "" };
+
             }
 
             IEnumerator IEnumerable.GetEnumerator()
