@@ -1,6 +1,8 @@
 using Xunit;
 using ChatAppServer.src.ManageChat;
 using System;
+using System.Collections.Generic;
+using System.Collections;
 
 namespace ChatAppServer.Test
 {
@@ -30,10 +32,9 @@ namespace ChatAppServer.Test
             Assert.Throws<ArgumentException>(() => ChatServiceManager.GetLoginDataFromString(loginDataMessage));
         }
 
+
         [Theory]
-        [InlineData(" ", "password", "login")]
-        [InlineData("login", " ",  "password")]
-        [InlineData(" ", " ", "login")]
+        [MemberData(nameof(LoginWithWhiteSpaceData))]
         public void GetLoginDataFromString_ThrowsOnWhiteSpaceEntries(string login, string password, string failingArgument)
         {
             string loginDataMessage = $"[login]{login}[password]{password}";
@@ -41,5 +42,37 @@ namespace ChatAppServer.Test
             Assert.Throws<ArgumentException>(failingArgument,
                 () => ChatServiceManager.GetLoginDataFromString(loginDataMessage));
         }
+
+        public static IEnumerable<object[]> LoginWithWhiteSpaceData()
+        {
+            yield return new object[] { " ", "password", "login" };
+            yield return new object[] { "login", " ", "password" };
+            yield return new object[] { " ", " ", "login" };
+        }
+
+        [Theory]
+        [ClassData(typeof(LoginWithEmptyData))]
+        public void GetLoginDataFromStringWithClassData(string login, string password)
+        {
+            string loginDataMessage = $"[login]{login}[password]{password}";
+
+            Assert.Throws<ArgumentException>(() => ChatServiceManager.GetLoginDataFromString(loginDataMessage));
+        }
+
+        public class LoginWithEmptyData : IEnumerable<object[]>
+        {
+            public IEnumerator<object[]> GetEnumerator()
+            {
+                yield return new object[] { "", "password" };
+                yield return new object[] { "login", "" };
+                yield return new object[] { "", "" };
+            }
+
+            IEnumerator IEnumerable.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
+        }
+
     }
 }
