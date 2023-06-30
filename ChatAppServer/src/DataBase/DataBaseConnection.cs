@@ -52,5 +52,28 @@ namespace ChatAppServer
             }
             Console.WriteLine("Data Base Conenction closed.");
         }
+
+        public static DataBaseConnection CreateAndInitiateConnection(string dataBaseName)
+        {
+            DataBaseConnection DBConn;
+            try
+            {
+                DBConn = new DataBaseConnection(dataBaseName);
+            }
+            catch (ArgumentException)
+            {
+                throw;
+            }
+
+            try
+            {
+                DBConn.Initiate();
+            }
+            catch (FailedConnectToDataBaseException)
+            {
+                throw;
+            }
+            return DBConn;
+        }
     }
 }
