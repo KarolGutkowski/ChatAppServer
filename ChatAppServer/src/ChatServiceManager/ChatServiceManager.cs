@@ -37,6 +37,7 @@ namespace ChatAppServer.src.ManageChat
             while (!cts.IsCancellationRequested)
             {
                 var messagesToSend = new List<Task>();
+                var messagesToStore = new List<Task>();
                 lock (connectedClients)
                 {
                     foreach (var client in connectedClients)
@@ -54,14 +55,31 @@ namespace ChatAppServer.src.ManageChat
                                 connectedClients.Remove(client);
                                 continue;
                             }
+
+                            //TODO: unit testing the funcntionality of splitting messages, beforehand extract it to seperate function
+                            string[] stringSplitters = { ":" };
+                            string[] messageSplitted = received!.Split(stringSplitters, StringSplitOptions.RemoveEmptyEntries);
+
+
                             Console.WriteLine(received);
                             messagesToSend.Add(new Task(() => SendMessages(received!, client)));
+
+                            if(messageSplitted.Length == 1)
+                            {
+                                messageSplitted.Append("");
+                            }
+                            messagesToStore.Add(new Task(() => StoreNewMessageIntoDataBase(messageSplitted[0], messageSplitted[1])));
 
                         }
                     }
                 }
 
                 foreach(var task in messagesToSend)
+                {
+                    task.Start();
+                }
+
+                foreach(var task in messagesToStore)
                 {
                     task.Start();
                 }
@@ -174,6 +192,25 @@ namespace ChatAppServer.src.ManageChat
             }
 
             return (login, password);
+        }
+
+        public static void StoreNewMessageIntoDataBase(string sender_name, string message)
+        {
+            // prepare query to send to database
+            // insert data into database
+
+            string insertText = "INSERT INTO ChatHistory" +
+                "(sender_name, message)" +
+                "VALUES (@sender_name, @message)";
+
+            List<(string param, string value)> insertParams =
+                new List<(string param, string value)>()
+                {
+                    ("@sender_name", sender_name),
+                    ("@message", message)
+                };
+
+            DBQueryManager.Insert(Program.mainDB, insertText, insertParams);
         }
     }
 }
