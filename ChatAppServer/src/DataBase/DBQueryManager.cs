@@ -61,18 +61,12 @@ namespace ChatAppServer
             DataBaseConnection DBConn;
             try
             {
-                DBConn = new DataBaseConnection(dataBaseName);
+                DBConn = DataBaseConnection.CreateAndInitiateConnection(dataBaseName);
             }
-            catch (ArgumentException)
-            {
-                throw;
-            }
-
-            try
-            {
-                DBConn.Initiate();
-            }
-            catch (FailedConnectToDataBaseException)
+            catch (Exception ex) when (
+               ex is ArgumentException ||
+               ex is FailedConnectToDataBaseException
+            )
             {
                 throw;
             }
@@ -90,6 +84,34 @@ namespace ChatAppServer
             DBConn?.Close();
 
             return null;
+        }
+
+
+        public static void Insert(string dataBaseName, string command, List<(string param, string value)> insertParams)
+        {
+            DataBaseConnection DBConn;
+            try
+            {
+                DBConn = DataBaseConnection.CreateAndInitiateConnection(dataBaseName);
+            }catch(Exception ex) when (
+                ex is ArgumentException ||
+                ex is FailedConnectToDataBaseException
+            )
+            {
+                throw;
+            }
+
+
+            if (DBConn?.connection?.State == ConnectionState.Open)
+            {
+                SqlCommand query = new SqlCommand(command, DBConn.connection);
+                foreach (var queryParam in insertParams)
+                {
+                    query.Parameters.AddWithValue(queryParam.param, queryParam.value);
+                }
+                query.ExecuteNonQuery();
+            }
+
         }
     }
 }
