@@ -56,7 +56,7 @@ namespace ChatAppServer
 
 
 
-        public static IDataReader? Select(string dataBaseName,string command, List<(string param, string value, SqlDbType type)> queryParams)
+        public static SqlDataReader? Select(string dataBaseName,string command, List<(string param, string value, SqlDbType type)> queryParams)
         {
             DataBaseConnection DBConn;
             try
@@ -78,7 +78,17 @@ namespace ChatAppServer
                 {
                     query.Parameters.AddWithValue(queryParam.param, queryParam.value);
                 }
-                return query.ExecuteReader();
+
+                SqlDataReader? reader = null;
+                try
+                {
+                    reader = query.ExecuteReader();
+                }catch(SqlException)
+                {
+                    throw;
+                }
+
+                return reader;
             }
 
             DBConn?.Close();
@@ -87,7 +97,7 @@ namespace ChatAppServer
         }
 
 
-        public static void Insert(string dataBaseName, string command, List<(string param, string value)> insertParams)
+        public static void Insert(string dataBaseName, string commandString, List<(string param, string value)> insertParams)
         {
             DataBaseConnection DBConn;
             try
@@ -104,12 +114,20 @@ namespace ChatAppServer
 
             if (DBConn?.connection?.State == ConnectionState.Open)
             {
-                SqlCommand query = new SqlCommand(command, DBConn.connection);
-                foreach (var queryParam in insertParams)
+                SqlCommand command = new SqlCommand(commandString, DBConn.connection);
+                foreach (var insertParam in insertParams)
                 {
-                    query.Parameters.AddWithValue(queryParam.param, queryParam.value);
+                    command.Parameters.AddWithValue(insertParam.param, insertParam.value);
                 }
-                query.ExecuteNonQuery();
+                try
+                {
+
+                    command.ExecuteNonQuery();
+                }
+                catch (SqlException)
+                {
+                    throw;
+                }
             }
 
         }
