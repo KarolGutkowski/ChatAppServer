@@ -42,10 +42,13 @@ namespace ChatAppServer.src.ManageChat
                 {
                     foreach (var client in connectedClients)
                     {
-                        if(client.Connection is null || !client.Connection.Connected) 
+                        if (client.Connection is null || !client.Connection.Connected)
+                        {
                             connectedClients.Remove(client);
-
-                        NetworkStream stream = client.Connection!.GetStream();
+                            continue;
+                        }
+                        
+                        NetworkStream stream = client.Connection.GetStream();
                         if (stream.DataAvailable)
                         {
 
