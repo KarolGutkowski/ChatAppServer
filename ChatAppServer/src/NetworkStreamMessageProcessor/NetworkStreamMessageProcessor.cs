@@ -15,7 +15,7 @@ namespace ChatAppServer.src.NetworkStreamMessageProcessor
             try
             {
                 stream.Write(bytesToSend, 0, bytesToSend.Length);
-            }catch(IOException)
+            }catch(Exception ex) when (ex is IOException || ex is InvalidOperationException)  
             {
                 return false;
             }
