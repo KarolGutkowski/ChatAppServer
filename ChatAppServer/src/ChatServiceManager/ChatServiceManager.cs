@@ -56,19 +56,13 @@ namespace ChatAppServer.src.ManageChat
                                 continue;
                             }
 
-                            //TODO: unit testing the funcntionality of splitting messages, beforehand extract it to seperate function
-                            string[] stringSplitters = { ":" };
-                            string[] messageSplitted = received!.Split(stringSplitters, StringSplitOptions.RemoveEmptyEntries);
-
+                            StringBuilder messageToSendBuilder = new StringBuilder($"[{client.Login}]");
+                            messageToSendBuilder.Append(received);
+                            string messageToSend = messageToSendBuilder.ToString();
 
                             Console.WriteLine(received);
-                            messagesToSend.Add(new Task(() => SendMessages(received!, client)));
-
-                            if(messageSplitted.Length == 1)
-                            {
-                                messageSplitted.Append("");
-                            }
-                            messagesToStore.Add(new Task(() => StoreNewMessageIntoDataBase(messageSplitted[0], messageSplitted[1])));
+                            messagesToSend.Add(new Task(() => SendMessages(messageToSend, client)));  
+                            messagesToStore.Add(new Task(() => StoreNewMessageIntoDataBase(client.Login! , received!)));
 
                         }
                     }
@@ -147,7 +141,7 @@ namespace ChatAppServer.src.ManageChat
             }
         }
 
-        public (bool, string?) AuthenticateUserCredentials(NetworkStream stream)
+        public (bool, string) AuthenticateUserCredentials(NetworkStream stream)
         {
             (string? received, bool success) = StreamRead(stream);
             if(!success)
