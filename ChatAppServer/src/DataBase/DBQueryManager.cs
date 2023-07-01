@@ -121,7 +121,6 @@ namespace ChatAppServer
                 }
                 try
                 {
-
                     command.ExecuteNonQuery();
                 }
                 catch (SqlException)
