@@ -14,15 +14,13 @@ namespace ChatAppServer
     {
         public static string mainDB = "ChatAppDB";
         static TcpListener listener = new TcpListener(new IPAddress(new byte[] {127,0,0,1}), 10_000);
-        public static DataBaseConnection DB;
         static async Task Main(string[] args)
         {
 
             ChatServiceManager chatServiceManager;
-            List<Client> clients = new();
             listener.Start();
             Console.WriteLine("Server started!");
-            chatServiceManager = new(listener, clients);
+            chatServiceManager = new ChatServiceManager(listener);
                
             var cts = new CancellationTokenSource();
             var serverDuties = new List<Task>()
@@ -37,14 +35,13 @@ namespace ChatAppServer
                 task.Start();
             }
 
-            string command = string.Empty;
-            while(command!="quit()")
+            string? command = string.Empty;
+            while(command is not null && command!="quit()")
             {
                 command = Console.ReadLine();
             }
 
             cts.Cancel();
-
 
             await Task.WhenAll(serverDuties);
             listener.Stop();

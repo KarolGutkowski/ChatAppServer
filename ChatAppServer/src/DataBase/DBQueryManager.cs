@@ -56,23 +56,17 @@ namespace ChatAppServer
 
 
 
-        public static IDataReader? Select(string dataBaseName,string command, List<(string param, string value, SqlDbType type)> queryParams)
+        public static SqlDataReader? Select(string dataBaseName,string command, List<(string param, string value, SqlDbType type)> queryParams)
         {
             DataBaseConnection DBConn;
             try
             {
-                DBConn = new DataBaseConnection(dataBaseName);
+                DBConn = DataBaseConnection.CreateAndInitiateConnection(dataBaseName);
             }
-            catch (ArgumentException)
-            {
-                throw;
-            }
-
-            try
-            {
-                DBConn.Initiate();
-            }
-            catch (FailedConnectToDataBaseException)
+            catch (Exception ex) when (
+               ex is ArgumentException ||
+               ex is FailedConnectToDataBaseException
+            )
             {
                 throw;
             }
@@ -84,12 +78,57 @@ namespace ChatAppServer
                 {
                     query.Parameters.AddWithValue(queryParam.param, queryParam.value);
                 }
-                return query.ExecuteReader();
+
+                SqlDataReader? reader = null;
+                try
+                {
+                    reader = query.ExecuteReader();
+                }catch(SqlException)
+                {
+                    throw;
+                }
+
+                return reader;
             }
 
             DBConn?.Close();
 
             return null;
+        }
+
+
+        public static void Insert(string dataBaseName, string commandString, List<(string param, string value)> insertParams)
+        {
+            DataBaseConnection DBConn;
+            try
+            {
+                DBConn = DataBaseConnection.CreateAndInitiateConnection(dataBaseName);
+            }catch(Exception ex) when (
+                ex is ArgumentException ||
+                ex is FailedConnectToDataBaseException
+            )
+            {
+                throw;
+            }
+
+
+            if (DBConn?.connection?.State == ConnectionState.Open)
+            {
+                SqlCommand command = new SqlCommand(commandString, DBConn.connection);
+                foreach (var insertParam in insertParams)
+                {
+                    command.Parameters.AddWithValue(insertParam.param, insertParam.value);
+                }
+                try
+                {
+                    command.ExecuteNonQuery();
+                }
+                catch (SqlException)
+                {
+                    throw;
+                }
+            }
+
         }
     }
 }
