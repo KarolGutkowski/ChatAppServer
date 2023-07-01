@@ -18,16 +18,16 @@ namespace ChatAppServer.src.ManageChat
     public class ChatServiceManager
     {
         private TcpListener? listener;
-        private List<Client>? connectedClients;
+        private List<Client> connectedClients;
         public ChatServiceManager()
         {
             this.listener = null;
-            this.connectedClients = null;
+            connectedClients = new List<Client>();
         }
-        public ChatServiceManager(TcpListener listener, List<Client> clients)
+        public ChatServiceManager(TcpListener listener)
         {
             this.listener = listener;
-            this.connectedClients = clients;
+            connectedClients = new List<Client>();
         }
 
         public void ReadMessages(CancellationToken cts)
@@ -123,9 +123,10 @@ namespace ChatAppServer.src.ManageChat
                 if (login is null) login = "";
 
                 Client newlyAcceptedClient = new Client(login, ref tcpClient);
+
                 lock (connectedClients)
                 {
-                    connectedClients?.Add(newlyAcceptedClient);
+                    connectedClients.Add(newlyAcceptedClient);
                 }
             }
         }
@@ -136,6 +137,8 @@ namespace ChatAppServer.src.ManageChat
                 foreach (var client in connectedClients)
                 {
                     if (client.Login == sender.Login) continue;
+                    if (client.Connection is null) continue;
+
                     bool success = StreamWrite(client.Connection.GetStream(), message);
                     if(!success)
                     {
