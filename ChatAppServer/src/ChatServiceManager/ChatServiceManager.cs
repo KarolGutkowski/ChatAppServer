@@ -12,22 +12,24 @@ using System.Net.NetworkInformation;
 using static ChatAppServer.src.NetworkStreamMessageProcessor.NetworkStreamMessageProcessor;
 using System.Data.SqlClient;
 using BCrypt.Net;
+using System.Collections.Concurrent;
 
 namespace ChatAppServer.src.ManageChat
 {
     public class ChatServiceManager
     {
         private TcpListener? listener;
-        private List<Client> connectedClients;
+        private ConcurrentDictionary<ulong, Client> connectedClients;
+        public static ulong nextUserId = 0;
         public ChatServiceManager()
         {
             this.listener = null;
-            connectedClients = new List<Client>();
+            connectedClients = new ConcurrentDictionary<ulong, Client>();
         }
         public ChatServiceManager(TcpListener listener)
         {
             this.listener = listener;
-            connectedClients = new List<Client>();
+            connectedClients = new ConcurrentDictionary<ulong, Client>();
         }
 
         public void ReadMessages(CancellationToken cts)
@@ -38,36 +40,35 @@ namespace ChatAppServer.src.ManageChat
             {
                 var messagesToSend = new List<Task>();
                 var messagesToStore = new List<Task>();
-                lock (connectedClients)
+                
+                foreach (var client in connectedClients)
                 {
-                    foreach (var client in connectedClients)
+                    if (client.Value.Connection is null || !client.Value.Connection.Connected)
                     {
-                        if (client.Connection is null || !client.Connection.Connected)
+                        connectedClients.TryRemove(client);
+                        continue;
+                    }
+                        
+                    NetworkStream stream = client.Value.Connection.GetStream();
+                    if (stream.DataAvailable)
+                    {
+
+                        (string? received, bool success) = StreamRead(stream);
+                        if(!success)
                         {
-                            connectedClients.Remove(client);
+                            connectedClients.TryRemove(client);
                             continue;
                         }
-                        
-                        NetworkStream stream = client.Connection.GetStream();
-                        if (stream.DataAvailable)
-                        {
 
-                            (string? received, bool success) = StreamRead(stream);
-                            if(!success)
-                            {
-                                connectedClients.Remove(client);
-                                continue;
-                            }
+                        StringBuilder messageToSendBuilder = new StringBuilder($"[{client.Value.Login}]");
+                        messageToSendBuilder.Append(received);
+                        messageToSendBuilder.Append("\n");
+                        string messageToSend = messageToSendBuilder.ToString();
 
-                            StringBuilder messageToSendBuilder = new StringBuilder($"[{client.Login}]");
-                            messageToSendBuilder.Append(received);
-                            string messageToSend = messageToSendBuilder.ToString();
+                        Console.WriteLine(received);
+                        messagesToSend.Add(new Task(() => SendMessages(messageToSend, client.Value)));  
+                        messagesToStore.Add(new Task(() => StoreNewMessageIntoDataBase(client.Value.Login! , received!)));
 
-                            Console.WriteLine(received);
-                            messagesToSend.Add(new Task(() => SendMessages(messageToSend, client)));  
-                            messagesToStore.Add(new Task(() => StoreNewMessageIntoDataBase(client.Login! , received!)));
-
-                        }
                     }
                 }
 
@@ -106,7 +107,16 @@ namespace ChatAppServer.src.ManageChat
 
                 if (!authorizedToJoin)
                 {
-                    StreamWrite(tcpClient.GetStream(), "FAILED");
+                    NetworkStream clientStream;
+                    try
+                    {
+                        clientStream = tcpClient.GetStream();
+                    }catch (InvalidOperationException)
+                    {
+                        continue;
+                    }
+
+                    StreamWrite(clientStream, "FAILED");
                     tcpClient.Close();
                     continue;
                     
@@ -124,28 +134,27 @@ namespace ChatAppServer.src.ManageChat
 
                 Client newlyAcceptedClient = new Client(login, ref tcpClient);
 
-                lock (connectedClients)
-                {
-                    connectedClients.Add(newlyAcceptedClient);
-                }
+                string storedMessages = GetAllMessages();
+
+                if (tcpClient.GetStream() is not null)
+                    await StreamWriteAsync(tcpClient.GetStream(), storedMessages);
+                
+                connectedClients.TryAdd(nextUserId++, newlyAcceptedClient);
             }
         }
         public void SendMessages(string message, Client sender)
         {
-            lock (connectedClients)
+            foreach (var client in connectedClients)
             {
-                foreach (var client in connectedClients)
+                if (client.Value.Login == sender.Login) continue;
+                if (client.Value.Connection is null) continue;
+
+                bool success = StreamWrite(client.Value.Connection.GetStream(), message);
+                if(!success)
                 {
-                    if (client.Login == sender.Login) continue;
-                    if (client.Connection is null) continue;
-
-                    bool success = StreamWrite(client.Connection.GetStream(), message);
-                    if(!success)
-                    {
-                        connectedClients.Remove(client);
-                    }
-
+                    connectedClients.TryRemove(client);
                 }
+
             }
         }
 
@@ -201,18 +210,65 @@ namespace ChatAppServer.src.ManageChat
             // prepare query to send to database
             // insert data into database
 
-            string insertText = "INSERT INTO ChatHistory" +
-                "(sender_name, message)" +
-                "VALUES (@sender_name, @message)";
+            string insertText = "INSERT INTO ChatHistory VALUES (@sender_name, @message, @date, @time)";
 
             List<(string param, string value)> insertParams =
                 new List<(string param, string value)>()
                 {
                     ("@sender_name", sender_name),
-                    ("@message", message)
+                    ("@message", message),
+                    ("@date", DateTime.Now.Date.ToString()),
+                    ("@time", DateTime.Now.TimeOfDay.ToString())
                 };
 
-            DBQueryManager.Insert(Program.mainDB, insertText, insertParams);
+            try
+            {
+                DBQueryManager.Insert(Program.mainDB, insertText, insertParams);
+            } catch (SqlException ex)
+            {
+                Console.Error.WriteLine(ex.Message);
+            }
+
+        }
+
+        public static string GetAllMessages()
+        {
+            string command = $"SELECT * FROM ChatHistory ORDER BY [date], [time];";
+            SqlDataReader? reader;
+            try
+            {
+                reader = DBQueryManager.Select(Program.mainDB, command, new());
+            }
+            catch (Exception ex) when (
+               ex is ArgumentException ||
+               ex is FailedConnectToDataBaseException||
+               ex is SqlException
+            )
+            {
+                throw;
+            }
+
+            if (reader is null)
+                return String.Empty;
+
+            StringBuilder messageBuilder = new StringBuilder();
+
+            
+
+            if(reader.HasRows)
+            {
+                while(reader.Read())
+                {
+                    DateTime date = (DateTime)reader["date"];
+                    TimeSpan timeOfDay = (TimeSpan)reader["time"];
+                    string sender = (string)reader["sender_name"];
+                    string message = (string)reader["message"];
+
+                    messageBuilder.Append($"[{date.ToShortDateString()} at {timeOfDay.ToString("hh':'mm")}]\n[{sender}]{message}\n");
+                }
+            }
+
+            return messageBuilder.ToString();
         }
     }
 }
