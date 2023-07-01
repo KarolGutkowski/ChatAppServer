@@ -45,7 +45,7 @@ namespace ChatAppServer.src.ManageChat
                         if(client.Connection is null || !client.Connection.Connected) 
                             connectedClients.Remove(client);
 
-                        NetworkStream stream = client.Connection.GetStream();
+                        NetworkStream stream = client.Connection!.GetStream();
                         if (stream.DataAvailable)
                         {
 
@@ -99,7 +99,7 @@ namespace ChatAppServer.src.ManageChat
                 TcpClient tcpClient = acceptTask.Result;
                 NetworkStream stream = tcpClient.GetStream();
 
-                (bool authorizedToJoin, string login) = AuthenticateUserCredentials(stream);
+                (bool authorizedToJoin, string? login) = AuthenticateUserCredentials(stream);
 
                 if (!authorizedToJoin)
                 {
@@ -116,6 +116,8 @@ namespace ChatAppServer.src.ManageChat
                     tcpClient.Close();
                     continue;
                 }
+
+                if (login is null) login = "";
 
                 Client newlyAcceptedClient = new Client(login, ref tcpClient);
                 lock (connectedClients)
@@ -141,7 +143,7 @@ namespace ChatAppServer.src.ManageChat
             }
         }
 
-        public (bool, string) AuthenticateUserCredentials(NetworkStream stream)
+        public (bool, string?) AuthenticateUserCredentials(NetworkStream stream)
         {
             (string? received, bool success) = StreamRead(stream);
             if(!success)
